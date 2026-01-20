@@ -2,8 +2,8 @@ name: Build FEYKIN AI EXE
 
 on:
   push:
-    tags:
-      - 'v*' # Сборка будет запускаться, когда ты создаешь тег версии (напр. v1.0)
+    branches: [ "main", "master" ] # Сработает на любой главной ветке
+  workflow_dispatch:              # Кнопка ручного запуска
 
 jobs:
   build:
@@ -11,10 +11,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4 # v4 — самая актуальная база
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v5 # v5 — стандарт для Python
       with:
         python-version: '3.11'
 
@@ -25,12 +25,19 @@ jobs:
 
     - name: Build EXE with PyInstaller
       run: |
-        # Мы используем ту самую команду с пробросом путей customtkinter
+        # Используем мощную сборку под Windows
         python -m PyInstaller --noconfirm --onefile --windowed --add-data "$(python -c 'import customtkinter; print(customtkinter.__path__[0])');customtkinter/" feykin_ai_pro.py
 
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4 # v4 — обязательна для новых проектов
+      with:
+        name: FeykinAI-v1.0-Build
+        path: dist/feykin_ai_pro.exe
+        retention-days: 5 # Хранить файл 5 дней
+
     - name: Create Release
-      id: create_release
-      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2 # v2 — актуальный стандарт для релизов
       with:
         files: dist/feykin_ai_pro.exe
       env:
