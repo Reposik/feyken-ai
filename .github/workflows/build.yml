@@ -11,7 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Python
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -19,14 +19,6 @@ jobs:
     - name: Install dependencies
       run: |
         pip install groq customtkinter pyinstaller
-
-    - name: Inject API Key
-      shell: pwsh
-      env:
-        MY_SECRET_KEY: ${{ secrets.GROQ_API_KEY }}
-      run: |
-        # Эта команда заменит заглушку в коде на реальный ключ из Secrets
-        (Get-Content ai.py).Replace('PLACEHOLDER_KEY', "$env:MY_SECRET_KEY") | Set-Content ai.py
 
     - name: Build EXE
       shell: pwsh
