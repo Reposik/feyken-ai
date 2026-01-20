@@ -2,63 +2,57 @@ import os
 import customtkinter as ctk
 from groq import Groq
 import threading
-import sys
 
-# Берем ключ из секретов GitHub (при сборке) или из системы
-API_KEY = os.environ.get("GROQ_API_KEY", "")
+# Гитхаб заменит слово PLACEHOLDER_KEY на твой реальный ключ при сборке
+API_KEY = "PLACEHOLDER_KEY"
 
-class FeykinAI(ctk.CTk):
+class FeykinApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        
-        self.title("FEYKIN AI PRO - AZER EDITION")
+        self.title("FEYKIN AI - FIXED EDITION")
         self.geometry("800x600")
         ctk.set_appearance_mode("dark")
-        
-        # Заголовок
-        self.label = ctk.CTkLabel(self, text="FEYKIN AI", font=("Arial", 24, "bold"), text_color="#ff003c")
-        self.label.pack(pady=10)
 
-        # Поле вывода
-        self.result_text = ctk.CTkTextbox(self, width=760, height=400, font=("Consolas", 14))
-        self.result_text.pack(padx=20, pady=10)
+        self.output = ctk.CTkTextbox(self, width=760, height=450, font=("Consolas", 14))
+        self.output.pack(padx=20, pady=20)
 
-        # Поле ввода
-        self.input_field = ctk.CTkEntry(self, placeholder_text="Введите ваш запрос...", width=600, height=40)
-        self.input_field.pack(side="left", padx=(20, 10), pady=20)
+        self.entry_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.entry_frame.pack(padx=20, pady=10, fill="x")
 
-        # Кнопка
-        self.btn = ctk.CTkButton(self, text="ПУСК", command=self.send_request, fg_color="#ff003c", hover_color="#b3002a")
-        self.btn.pack(side="right", padx=(0, 20), pady=20)
+        self.input = ctk.CTkEntry(self.entry_frame, placeholder_text="Теперь точно заработает. Пиши запрос...", height=40)
+        self.input.pack(side="left", fill="x", expand=True, padx=(0, 10))
 
-    def send_request(self):
-        prompt = self.input_field.get()
-        if not prompt: return
-        
-        if not API_KEY:
-            self.result_text.insert("end", "\n[!] Ошибка: Ключ API не найден. Проверь GitHub Secrets!\n")
-            return
+        self.btn = ctk.CTkButton(self.entry_frame, text="ПУСК", command=self.start, fg_color="#ff003c")
+        self.btn.pack(side="right")
 
+    def start(self):
+        txt = self.input.get()
+        if not txt: return
         self.btn.configure(state="disabled")
-        threading.Thread(target=self.call_groq, args=(prompt,), daemon=True).start()
+        threading.Thread(target=self.run, args=(txt,), daemon=True).start()
 
-    def call_groq(self, prompt):
+    def run(self, txt):
         try:
-            client = Groq(api_key=API_KEY)
-            completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            response = completion.choices[0].message.content
-            self.after(0, lambda: self.show_response(response))
+            # Если ключ всё еще заглушка, значит что-то пошло не так в Actions
+            if API_KEY == "PLACEHOLDER_KEY":
+                res = "Критическая ошибка: Ключ не был вшит при сборке!"
+            else:
+                client = Groq(api_key=API_KEY)
+                chat = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": txt}]
+                )
+                res = chat.choices[0].message.content
         except Exception as e:
-            self.after(0, lambda: self.show_response(f"Ошибка: {str(e)}"))
+            res = f"ОШИБКА: {str(e)}"
+        
+        self.after(0, lambda: self.show(res))
 
-    def show_response(self, text):
-        self.result_text.delete("1.0", "end")
-        self.result_text.insert("end", text)
+    def show(self, res):
+        self.output.delete("1.0", "end")
+        self.output.insert("end", res)
         self.btn.configure(state="normal")
 
 if __name__ == "__main__":
-    app = FeykinAI()
+    app = FeykinApp()
     app.mainloop()
