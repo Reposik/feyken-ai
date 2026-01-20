@@ -2,71 +2,63 @@ import os
 import customtkinter as ctk
 from groq import Groq
 import threading
+import sys
 
-# Ключ подтянется из системы при сборке или из настроек GitHub
-API_KEY = os.getenv("GROQ_API_KEY", "YOUR_KEY_HERE_FOR_TESTS")
-CREATOR = "AzerOne / FEYKINS"
+# Берем ключ из секретов GitHub (при сборке) или из системы
+API_KEY = os.environ.get("GROQ_API_KEY", "")
 
-class FeykinCore:
-    def __init__(self):
-        self.client = Groq(api_key=API_KEY)
-        self.model = "llama-3.3-70b-versatile"
-
-    def generate_code(self, prompt):
-        try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": f"Ты FEYKIN AI от {CREATOR}. Пиши только идеальный код."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1
-            )
-            return completion.choices[0].message.content
-        except Exception as e:
-            return f"Ошибка: {str(e)}"
-
-class FeykinApp(ctk.CTk):
+class FeykinAI(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.ai = FeykinCore()
-        self.title(f"FEYKIN AI - {CREATOR}")
-        self.geometry("900x700")
+        
+        self.title("FEYKIN AI PRO - AZER EDITION")
+        self.geometry("800x600")
         ctk.set_appearance_mode("dark")
+        
+        # Заголовок
+        self.label = ctk.CTkLabel(self, text="FEYKIN AI", font=("Arial", 24, "bold"), text_color="#ff003c")
+        self.label.pack(pady=10)
 
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        # Поле вывода
+        self.result_text = ctk.CTkTextbox(self, width=760, height=400, font=("Consolas", 14))
+        self.result_text.pack(padx=20, pady=10)
 
-        self.header = ctk.CTkLabel(self, text="FEYKIN AI", font=("Consolas", 32, "bold"), text_color="#ff003c")
-        self.header.grid(row=0, column=0, pady=20)
+        # Поле ввода
+        self.input_field = ctk.CTkEntry(self, placeholder_text="Введите ваш запрос...", width=600, height=40)
+        self.input_field.pack(side="left", padx=(20, 10), pady=20)
 
-        self.code_display = ctk.CTkTextbox(self, font=("Consolas", 14))
-        self.code_display.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        # Кнопка
+        self.btn = ctk.CTkButton(self, text="ПУСК", command=self.send_request, fg_color="#ff003c", hover_color="#b3002a")
+        self.btn.pack(side="right", padx=(0, 20), pady=20)
 
-        self.input_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.input_frame.grid(row=2, column=0, padx=20, pady=20, sticky="ew")
-        self.input_frame.grid_columnconfigure(0, weight=1)
+    def send_request(self):
+        prompt = self.input_field.get()
+        if not prompt: return
+        
+        if not API_KEY:
+            self.result_text.insert("end", "\n[!] Ошибка: Ключ API не найден. Проверь GitHub Secrets!\n")
+            return
 
-        self.user_entry = ctk.CTkEntry(self.input_frame, placeholder_text="Что кодим?", height=45)
-        self.user_entry.grid(row=0, column=0, padx=(0, 10), sticky="ew")
+        self.btn.configure(state="disabled")
+        threading.Thread(target=self.call_groq, args=(prompt,), daemon=True).start()
 
-        self.gen_button = ctk.CTkButton(self.input_frame, text="ПУСК", command=self.start_gen_thread, fg_color="#ff003c")
-        self.gen_button.grid(row=0, column=1)
+    def call_groq(self, prompt):
+        try:
+            client = Groq(api_key=API_KEY)
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            response = completion.choices[0].message.content
+            self.after(0, lambda: self.show_response(response))
+        except Exception as e:
+            self.after(0, lambda: self.show_response(f"Ошибка: {str(e)}"))
 
-    def start_gen_thread(self):
-        task = self.user_entry.get()
-        if not task: return
-        self.gen_button.configure(state="disabled", text="...")
-        threading.Thread(target=self.run_ai, args=(task,), daemon=True).start()
-
-    def run_ai(self, task):
-        response = self.ai.generate_code(task)
-        self.after(0, lambda: self.update_ui(response))
-
-    def update_ui(self, response):
-        self.code_display.insert("end", f"\n{response}\n")
-        self.gen_button.configure(state="normal", text="ПУСК")
+    def show_response(self, text):
+        self.result_text.delete("1.0", "end")
+        self.result_text.insert("end", text)
+        self.btn.configure(state="normal")
 
 if __name__ == "__main__":
-    app = FeykinApp()
+    app = FeykinAI()
     app.mainloop()
